@@ -1,12 +1,14 @@
+#! /usr/bin/env nix-shell
+#! nix-shell -i runhaskell -p "haskell.packages.ghc802.ghcWithPackages (pkgs: with pkgs; [smallcheck QuickCheck criterion])"
+
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
 
 import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
-import qualified Data.Array.MArray as MA
 import Data.Array.ST
 import Control.Monad.ST (ST)
 import Data.List (partition, nub)
+import qualified Data.List
 import qualified Test.QuickCheck as QC
 import qualified Test.SmallCheck as SC
 import qualified Test.SmallCheck.Series as SCS
@@ -71,7 +73,7 @@ countlist n = accumArray (+) 0 (0,n) . flip zip (repeat 1)
 
 sort :: Int -> [Int] -> [Int]
 sort n xs =
-  concat [replicate count n | (n, count) <- assocs (countlist n xs)]
+  concat [replicate count val | (val, count) <- assocs (countlist n xs)]
 
 minfreeCountList :: [Int] -> Int
 minfreeCountList xs = search' $ countlist n (filter (<n) xs)
@@ -117,11 +119,21 @@ testRandom :: IO ()
 testRandom = QC.quickCheckWith opts randomWorks
   where opts = QC.stdArgs {QC.maxSuccess = 10000}
 
+testSort :: IO ()
+testSort = QC.quickCheckWith opts sorting
+  where
+    opts = QC.stdArgs {QC.maxSuccess = 10000}
+    sorting :: [QC.NonNegative (QC.Small Int)] -> Bool
+    sorting xs = sort 1000 input == Data.List.sort input
+      where input = nub [x | QC.NonNegative (QC.Small x) <- xs, x < 1000]
+
 testSmall :: IO ()
 testSmall = SC.smallCheck 7 smallWorks
 
-testAll = testSmall >> testRandom
+testAll :: IO ()
+testAll = testSort >> testSmall >> testRandom
 
+main :: IO ()
 main = do
   testAll
 
@@ -140,7 +152,6 @@ main = do
     list = nub $ filter (/= (n - 444)) $ take (n*10) $ randomRs (0, n) stdGen
     n = 20000
     stdGen = mkStdGen 42
-    specResult = minfree list
 
 {-
 
