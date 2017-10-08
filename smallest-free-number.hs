@@ -142,3 +142,51 @@ main = do
     stdGen = mkStdGen 42
     specResult = minfree list
 
+{-
+
+Completed 8660 tests without failure.
++++ OK, passed 10000 tests.
+benchmarking minfree/specification
+time                 1.299 s    (1.299 s .. 1.299 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.299 s    (1.299 s .. 1.299 s)
+std dev              71.03 μs   (0.0 s .. 81.89 μs)
+variance introduced by outliers: 19% (moderately inflated)
+
+benchmarking minfree/accumArray
+time                 1.100 ms   (1.098 ms .. 1.101 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.099 ms   (1.097 ms .. 1.100 ms)
+std dev              3.767 μs   (3.005 μs .. 4.754 μs)
+
+benchmarking minfree/mutable ST Mono
+time                 557.0 μs   (556.5 μs .. 557.8 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 557.2 μs   (556.4 μs .. 558.3 μs)
+std dev              2.951 μs   (1.942 μs .. 4.991 μs)
+
+benchmarking minfree/mutable ST
+time                 556.2 μs   (555.7 μs .. 556.9 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 556.4 μs   (555.7 μs .. 557.0 μs)
+std dev              2.109 μs   (1.622 μs .. 2.878 μs)
+
+benchmarking minfree/mutable ST Unboxed
+time                 145.2 μs   (145.2 μs .. 145.3 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 145.2 μs   (145.2 μs .. 145.3 μs)
+std dev              95.13 ns   (29.13 ns .. 181.8 ns)
+
+benchmarking minfree/countList
+time                 1.007 ms   (1.006 ms .. 1.009 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 1.005 ms   (1.003 ms .. 1.007 ms)
+std dev              7.035 μs   (5.811 μs .. 8.976 μs)
+
+benchmarking minfree/divide and conq
+time                 2.178 ms   (2.171 ms .. 2.186 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 2.189 ms   (2.183 ms .. 2.197 ms)
+std dev              22.63 μs   (17.78 μs .. 31.10 μs)
+
+-}
