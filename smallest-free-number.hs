@@ -5,8 +5,8 @@ import Data.Array.IArray
 import Data.Array.Unboxed (UArray)
 import qualified Data.Array.MArray as MA
 import Data.Array.ST
-import Data.List (partition, nub)
 import Control.Monad.ST (ST)
+import Data.List (partition, nub)
 import qualified Test.QuickCheck as QC
 import qualified Test.SmallCheck as SC
 import qualified Test.SmallCheck.Series as SCS
@@ -34,18 +34,34 @@ minfreeST = search . checklistST
 minfreeSTU :: [Int] -> Int
 minfreeSTU = search . checklistSTU
 
+minfreeMono :: [Int] -> Int
+minfreeMono = search . checklistMono
+
 checklistComp :: MArray a Bool m => [Int] -> m (a Int Bool)
 checklistComp xs = do
     a <- newArray (0,n) False
     sequence_ [writeArray a x True | x <- xs, x <= n]
     return a
   where n = length xs
+-- Without specializing performance degrades a lot compared to minfreeMono
+{-# SPECIALIZE checklistComp :: [Int] -> ST s (STArray s Int Bool) #-}
+{-# SPECIALIZE checklistComp :: [Int] -> ST s (STUArray s Int Bool) #-}
 
+
+-- Very interesting: try to write checklistST point-free style, related to
+-- impredicative types and the ($) hack
 checklistST :: [Int] -> Array Int Bool
 checklistST xs = runSTArray $ checklistComp xs
 
 checklistSTU :: [Int] -> UArray Int Bool
 checklistSTU xs = runSTUArray $ checklistComp xs
+
+checklistMono :: [Int] -> Array Int Bool
+checklistMono xs = runSTArray $ do
+    a <- newArray (0,n) False
+    sequence_ [writeArray a x True | x <- xs, x <= n]
+    return a
+  where n = length xs
 
 search :: (IArray a Bool, Ix i) => a i Bool -> Int
 search = length . takeWhile id . elems
@@ -82,6 +98,7 @@ works :: [Int] -> Bool
 works xs =
    minfreeAccumArray input == res &&
    minfreeST input == res &&
+   minfreeMono input == res &&
    minfreeSTU input == res &&
    minfreeCountList input == res &&
    minfreeDivConq input == res
@@ -112,6 +129,7 @@ main = do
     bgroup "minfree" [
         bench "specification" $ whnf minfree list
       , bench "accumArray" $ whnf minfreeAccumArray list
+      , bench "mutable ST Mono" $ whnf minfreeMono list
       , bench "mutable ST" $ whnf minfreeST list
       , bench "mutable ST Unboxed" $ whnf minfreeSTU list
       , bench "countList" $ whnf minfreeCountList list
@@ -123,3 +141,4 @@ main = do
     n = 20000
     stdGen = mkStdGen 42
     specResult = minfree list
+
