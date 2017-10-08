@@ -9,6 +9,8 @@ import Data.Array.ST
 import Control.Monad.ST (ST)
 import Data.List (partition, nub)
 import qualified Data.List
+import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Unboxed.Mutable as UV
 import qualified Test.QuickCheck as QC
 import qualified Test.SmallCheck as SC
 import qualified Test.SmallCheck.Series as SCS
@@ -39,6 +41,9 @@ minfreeSTU = search . checklistSTU
 minfreeMono :: [Int] -> Int
 minfreeMono = search . checklistMono
 
+minfreeV :: [Int] -> Int
+minfreeV = searchV . checklistVector
+
 checklistComp :: MArray a Bool m => [Int] -> m (a Int Bool)
 checklistComp xs = do
     a <- newArray (0,n) False
@@ -48,7 +53,6 @@ checklistComp xs = do
 -- Without specializing performance degrades a lot compared to minfreeMono
 {-# SPECIALIZE checklistComp :: [Int] -> ST s (STArray s Int Bool) #-}
 {-# SPECIALIZE checklistComp :: [Int] -> ST s (STUArray s Int Bool) #-}
-
 
 -- Very interesting: try to write checklistST point-free style, related to
 -- impredicative types and the ($) hack
@@ -65,8 +69,18 @@ checklistMono xs = runSTArray $ do
     return a
   where n = length xs
 
+checklistVector :: [Int] -> V.Vector Bool
+checklistVector xs = V.create $ do
+    v <- UV.replicate (n+1) False
+    sequence_ [UV.write v x True | x <- xs, x <= n]
+    return v
+  where n = length xs
+
 search :: (IArray a Bool, Ix i) => a i Bool -> Int
 search = length . takeWhile id . elems
+
+searchV :: V.Vector Bool -> Int
+searchV = V.length . V.takeWhile id
 
 countlist :: Int -> [Int] -> Array Int Int
 countlist n = accumArray (+) 0 (0,n) . flip zip (repeat 1)
@@ -102,6 +116,7 @@ works xs =
    minfreeST input == res &&
    minfreeMono input == res &&
    minfreeSTU input == res &&
+   minfreeV input == res &&
    minfreeCountList input == res &&
    minfreeDivConq input == res
   where
@@ -144,6 +159,7 @@ main = do
       , bench "mutable ST Mono" $ whnf minfreeMono list
       , bench "mutable ST" $ whnf minfreeST list
       , bench "mutable ST Unboxed" $ whnf minfreeSTU list
+      , bench "vector" $ whnf minfreeV list
       , bench "countList" $ whnf minfreeCountList list
       , bench "divide and conq" $ whnf minfreeDivConq list
                     ]
@@ -155,49 +171,57 @@ main = do
 
 {-
 
++++ OK, passed 10000 tests.
 Completed 8660 tests without failure.
 +++ OK, passed 10000 tests.
 benchmarking minfree/specification
-time                 1.299 s    (1.299 s .. 1.299 s)
+time                 1.270 s    (1.241 s .. 1.293 s)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 1.299 s    (1.299 s .. 1.299 s)
-std dev              71.03 μs   (0.0 s .. 81.89 μs)
+mean                 1.299 s    (1.291 s .. 1.316 s)
+std dev              14.19 ms   (0.0 s .. 14.30 ms)
 variance introduced by outliers: 19% (moderately inflated)
 
 benchmarking minfree/accumArray
-time                 1.100 ms   (1.098 ms .. 1.101 ms)
+time                 1.056 ms   (1.054 ms .. 1.058 ms)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 1.099 ms   (1.097 ms .. 1.100 ms)
-std dev              3.767 μs   (3.005 μs .. 4.754 μs)
+mean                 1.056 ms   (1.054 ms .. 1.059 ms)
+std dev              9.142 μs   (6.198 μs .. 14.15 μs)
 
 benchmarking minfree/mutable ST Mono
-time                 557.0 μs   (556.5 μs .. 557.8 μs)
+time                 530.6 μs   (529.8 μs .. 531.3 μs)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 557.2 μs   (556.4 μs .. 558.3 μs)
-std dev              2.951 μs   (1.942 μs .. 4.991 μs)
+mean                 530.8 μs   (530.0 μs .. 532.1 μs)
+std dev              3.516 μs   (2.533 μs .. 5.428 μs)
 
 benchmarking minfree/mutable ST
-time                 556.2 μs   (555.7 μs .. 556.9 μs)
-                     1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 556.4 μs   (555.7 μs .. 557.0 μs)
-std dev              2.109 μs   (1.622 μs .. 2.878 μs)
+time                 534.0 μs   (530.8 μs .. 537.7 μs)
+                     1.000 R²   (0.999 R² .. 1.000 R²)
+mean                 533.0 μs   (531.4 μs .. 535.3 μs)
+std dev              6.598 μs   (4.712 μs .. 9.226 μs)
 
 benchmarking minfree/mutable ST Unboxed
-time                 145.2 μs   (145.2 μs .. 145.3 μs)
+time                 144.1 μs   (143.6 μs .. 144.7 μs)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 145.2 μs   (145.2 μs .. 145.3 μs)
-std dev              95.13 ns   (29.13 ns .. 181.8 ns)
+mean                 144.2 μs   (143.8 μs .. 144.8 μs)
+std dev              1.666 μs   (1.091 μs .. 2.442 μs)
+
+benchmarking minfree/vector
+time                 136.0 μs   (134.1 μs .. 138.3 μs)
+                     0.998 R²   (0.997 R² .. 1.000 R²)
+mean                 134.4 μs   (133.4 μs .. 136.3 μs)
+std dev              4.084 μs   (2.486 μs .. 6.224 μs)
+variance introduced by outliers: 28% (moderately inflated)
 
 benchmarking minfree/countList
-time                 1.007 ms   (1.006 ms .. 1.009 ms)
+time                 1.737 ms   (1.723 ms .. 1.750 ms)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 1.005 ms   (1.003 ms .. 1.007 ms)
-std dev              7.035 μs   (5.811 μs .. 8.976 μs)
+mean                 1.722 ms   (1.717 ms .. 1.728 ms)
+std dev              17.96 μs   (14.11 μs .. 22.20 μs)
 
 benchmarking minfree/divide and conq
-time                 2.178 ms   (2.171 ms .. 2.186 ms)
+time                 2.123 ms   (2.116 ms .. 2.132 ms)
                      1.000 R²   (1.000 R² .. 1.000 R²)
-mean                 2.189 ms   (2.183 ms .. 2.197 ms)
-std dev              22.63 μs   (17.78 μs .. 31.10 μs)
+mean                 2.125 ms   (2.119 ms .. 2.134 ms)
+std dev              24.30 μs   (19.12 μs .. 31.01 μs)
 
 -}
