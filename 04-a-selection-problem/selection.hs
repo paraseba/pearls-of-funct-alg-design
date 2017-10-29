@@ -64,8 +64,8 @@ smallestVector k (zs,ws)
         (xs,ys') = VG.splitAt p zs; a = VG.head ys'; ys = VG.tail ys'
         (us,vs') = VG.splitAt q ws; b = VG.head vs'; vs = VG.tail vs'
 
-testListSmallest :: NonNegative Int -> OrderedList Int -> OrderedList Int -> Property
-testListSmallest (NonNegative k') (Ordered xs'') (Ordered ys'') =
+testSmallest :: NonNegative Int -> OrderedList Int -> OrderedList Int -> Property
+testSmallest (NonNegative k') (Ordered xs'') (Ordered ys'') =
   m > 0 ==>
     res == smallest k (xs, ys) .&&.
       res == (smallestArray k (xa,ya)) .&&.
@@ -82,7 +82,7 @@ testListSmallest (NonNegative k') (Ordered xs'') (Ordered ys'') =
     res = spec k (xs, ys)
 
 test :: IO ()
-test = quickCheckWith opts testListSmallest
+test = quickCheckWith opts testSmallest
   where
     opts = stdArgs {maxSuccess = 5000}
 
